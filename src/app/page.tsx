@@ -7,54 +7,19 @@ import OrderOverview from "@/components/order-overview";
 import ProductOverview from "@/components/product-overview";
 
 export default function Home() {
-    const {webApp, user} = useTelegram()
+    const {webApp} = useTelegram()
     const {state, dispatch} = useAppContext()
 
-    const handleCheckout = useCallback(async () => {
-        console.log("checkout!")
-        webApp?.MainButton.showProgress()
-        const invoiceSupported = webApp?.isVersionAtLeast('6.1');
-        const items = Array.from(state.cart.values()).map((item) => ({
-            id: item.product.id,
-            count: item.count
-        }))
-        const body = JSON.stringify({
-            userId: user?.id,
-            chatId: webApp?.initDataUnsafe.chat?.id,
-            invoiceSupported,
-            comment: state.comment,
-            shippingZone: state.shippingZone,
-            items
-        })
-
-        try {
-            const res = await fetch("api/orders", {method: "POST", body})
-            const result = await res.json()
-
-            if (invoiceSupported) {
-                webApp?.openInvoice(result.invoice_link, function (status) {
-                    webApp?.MainButton.hideProgress()
-                    if (status == 'paid') {
-                        console.log("[paid] InvoiceStatus " + result);
-                        webApp?.close();
-                    } else if (status == 'failed') {
-                        console.log("[failed] InvoiceStatus " + result);
-                        webApp?.HapticFeedback.notificationOccurred('error');
-                    } else {
-                        console.log("[unknown] InvoiceStatus" + result);
-                        webApp?.HapticFeedback.notificationOccurred('warning');
-                    }
-                });
-            } else {
-                webApp?.showAlert("Some features not available. Please update your telegram app!")
-            }
-        } catch (_) {
-            webApp?.showAlert("Some error occurred while processing order!")
-            webApp?.MainButton.hideProgress()
+    const handleCheckout = useCallback(() => {
+        const itemCount = Array.from(state.cart.values()).reduce((acc, item) => acc + item.count, 0)
+        if (itemCount === 0) {
+            webApp?.showAlert("Your order is empty. Please add a product to the cart first.")
+            return
         }
 
-
-    }, [webApp, state.cart, state.comment, state.shippingZone])
+        webApp?.showAlert("Ordering is disabled in catalog mode. Please contact us to place your order.")
+        webApp?.HapticFeedback?.notificationOccurred('warning')
+    }, [webApp, state.cart])
 
     useEffect(() => {
         const callback = state.mode === "order" ? handleCheckout :
